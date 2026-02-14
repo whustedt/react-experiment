@@ -3,7 +3,7 @@ package com.example.workitems;
 import java.time.OffsetDateTime;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
-
+@Schema
 public class WorkItemDto {
     public String id;
     public String customerName;
@@ -14,7 +14,6 @@ public class WorkItemDto {
     public OffsetDateTime receivedAt;
     public String assignedTo;
 
-    @Schema
     public WorkItemDto() {
     }
 

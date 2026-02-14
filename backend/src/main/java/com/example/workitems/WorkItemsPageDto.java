@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
+@Schema
 public class WorkItemsPageDto {
     @Schema(required = true)
     public List<WorkItemDto> items;
@@ -11,7 +12,6 @@ public class WorkItemsPageDto {
     @Schema(required = true)
     public long total;
 
-    @Schema
     public WorkItemsPageDto() {
     }
 
