@@ -1,0 +1,16 @@
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.openapi-generator/
+frontend/openapitools.json
+
+# Java/Maven
+backend/target/
+
+# Logs
+*.log
