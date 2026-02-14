@@ -1,0 +1,16 @@
+{
+  "name": "Java & Typescript",
+  "image": "ghcr.io/prulloac/base:bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/prulloac/devcontainer-features/bun:1": {},
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "latest",
+      "installMaven": true,
+      "installGradle": true
+    },
+    "ghcr.io/devcontainers-extra/features/quarkus-sdkman:2": {}
+  },
+  "forwardPorts": [4200, 8080]
+}
