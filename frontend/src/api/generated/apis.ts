@@ -15,7 +15,7 @@ export class Configuration {
 export class WorkItemsApi {
   constructor(private config: Configuration = new Configuration()) {}
 
-  async searchWorkItemsRaw(params: SearchWorkItemsRequest): Promise<WorkItemsPageDto> {
+  async searchWorkItems(params: SearchWorkItemsRequest): Promise<WorkItemsPageDto> {
     const query = new URLSearchParams();
     if (params.page !== undefined) query.set('page', String(params.page));
     if (params.size !== undefined) query.set('size', String(params.size));
@@ -28,7 +28,7 @@ export class WorkItemsApi {
     return response.json() as Promise<WorkItemsPageDto>;
   }
 
-  async getWorkItemByIdRaw(id: string): Promise<WorkItemDto> {
+  async getWorkItemById({ id }: { id: string }): Promise<WorkItemDto> {
     const response = await fetch(`${this.config.basePath}/work-items/${id}`);
     if (!response.ok) throw new Error('Failed to fetch work item');
     return response.json() as Promise<WorkItemDto>;

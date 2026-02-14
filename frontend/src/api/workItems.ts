@@ -1,4 +1,4 @@
-import { WorkItemsApi, type WorkItemDto, type WorkItemsPageDto, type WorkItemStatus } from './generated';
+import { WorkItemStatus, WorkItemsApi, type WorkItemDto, type WorkItemsPageDto } from './generated';
 import { apiConfig } from './client';
 
 const api = new WorkItemsApi(apiConfig);
@@ -17,7 +17,7 @@ function normalizeWorkItem(item: WorkItemDto): Required<WorkItemDto> {
     customerName: item.customerName ?? '',
     contractNo: item.contractNo ?? '',
     type: item.type ?? '',
-    status: item.status ?? 'OPEN',
+    status: item.status ?? WorkItemStatus.OPEN,
     priority: item.priority ?? 0,
     receivedAt: item.receivedAt ?? '',
     assignedTo: item.assignedTo ?? '',
@@ -32,11 +32,11 @@ function normalizePage(page: WorkItemsPageDto): { items: Required<WorkItemDto>[]
 }
 
 export async function searchWorkItems(params: SearchWorkItemsParams) {
-  const result = await api.searchWorkItemsRaw(params);
+  const result = await api.searchWorkItems(params);
   return normalizePage(result);
 }
 
 export async function getWorkItemById(id: string) {
-  const result = await api.getWorkItemByIdRaw(id);
+  const result = await api.getWorkItemById({ id });
   return normalizeWorkItem(result);
 }
