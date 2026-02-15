@@ -295,4 +295,18 @@ public class WorkItemResource {
                         "Bestand", "Vertragsverlängerung aus Bestand ausgelöst."))));
         return logs;
     }
+
+    /**
+     * Reset the in-memory seeded state. Useful for tests to restore the initial dataset.
+     */
+    public static void resetState() {
+        WORK_ITEMS.clear();
+        WORK_ITEMS.addAll(new ArrayList<>(seedItems()));
+
+        DOCUMENTS_BY_OBJECT.clear();
+        DOCUMENTS_BY_OBJECT.putAll(seedDocuments());
+
+        PROTOCOL_BY_OBJECT.clear();
+        PROTOCOL_BY_OBJECT.putAll(seedProtocolEntries());
+    }
 }

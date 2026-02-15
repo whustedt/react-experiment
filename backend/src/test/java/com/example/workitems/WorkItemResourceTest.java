@@ -5,12 +5,18 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.test.junit.QuarkusTest;
 
 @QuarkusTest
 class WorkItemResourceTest {
+
+        @BeforeEach
+        void resetResourceState() {
+                WorkItemResource.resetState();
+        }
 
     @Test
     void shouldShowMyBasket() {
