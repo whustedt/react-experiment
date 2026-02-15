@@ -1,12 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
-import { searchWorkItems } from '../../../api/workItems';
-import type { WorkItemStatus } from '../../../api/generated';
+import { BasketScope, searchWorkItems, type DomainObjectType, type WorkItemStatus } from '../../../api/workItems';
 
 export interface WorklistFilters {
   page: number;
   size: number;
   q?: string;
   status?: WorkItemStatus;
+  basket: BasketScope;
+  colleague?: string;
+  objectType?: DomainObjectType;
+  objectId?: string;
 }
 
 export const worklistQueryKey = (filters: WorklistFilters) => ['work-items', filters] as const;
