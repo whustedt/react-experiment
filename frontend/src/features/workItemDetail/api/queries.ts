@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getContextView, getWorkItemById, uploadDocument, type DomainObjectType, type UploadDocumentCommand } from '../../../api/workItems';
+import { getWorkItemById, performWorkItemAction, type WorkItemActionCommand } from '../../../api/workItems';
 
 export const workItemDetailQueryKey = (id: string) => ['work-item', id] as const;
-export const contextQueryKey = (objectType: DomainObjectType, objectId: string) => ['context', objectType, objectId] as const;
 
 export function useWorkItemDetailQuery(id: string) {
   return useQuery({
@@ -12,23 +11,31 @@ export function useWorkItemDetailQuery(id: string) {
   });
 }
 
-export function useContextQuery(objectType?: DomainObjectType, objectId?: string) {
-  return useQuery({
-    queryKey: ['context', objectType, objectId],
-    queryFn: () => getContextView(objectType!, objectId!),
-    enabled: Boolean(objectType && objectId),
-  });
-}
-
-export function useUploadDocumentMutation(objectType?: DomainObjectType, objectId?: string) {
+export function useWorkItemActionMutation(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (command: UploadDocumentCommand) => uploadDocument(objectType!, objectId!, command),
-    onSuccess: () => {
-      if (objectType && objectId) {
-        queryClient.invalidateQueries({ queryKey: contextQueryKey(objectType, objectId) });
-      }
+    mutationFn: (command: WorkItemActionCommand) => performWorkItemAction(id, command),
+    onSuccess: (updatedItem) => {
+      queryClient.setQueryData(workItemDetailQueryKey(id), updatedItem);
+      queryClient.invalidateQueries({ queryKey: ['context', updatedItem.objectType, updatedItem.objectId] });
+      queryClient.setQueriesData({ queryKey: ['work-items'] }, (existing: { items: Array<{ id: string }>; total: number } | undefined) => {
+        if (!existing) return existing;
+        return {
+          ...existing,
+          items: existing.items.map((item) => (item.id === updatedItem.id ? updatedItem : item)),
+        };
+      });
+      queryClient.setQueriesData(
+        { queryKey: ['work-items-global'] },
+        (existing: { items: Array<{ id: string }>; total: number } | undefined) => {
+          if (!existing) return existing;
+          return {
+            ...existing,
+            items: existing.items.map((item) => (item.id === updatedItem.id ? updatedItem : item)),
+          };
+        },
+      );
     },
   });
 }

@@ -1,7 +1,8 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
 import { AppLayout } from './layout';
-import { WorklistPage } from '../features/worklist/ui/WorklistPage';
+import { DomainObjectDetailPage } from '../features/domainObjectDetail/ui/DomainObjectDetailPage';
 import { WorkItemDetailPage } from '../features/workItemDetail/ui/WorkItemDetailPage';
+import { WorklistPage } from '../features/worklist/ui/WorklistPage';
 
 const rootRoute = createRootRoute({ component: AppLayout });
 
@@ -17,7 +18,13 @@ const detailRoute = createRoute({
   component: WorkItemDetailPage,
 });
 
-const routeTree = rootRoute.addChildren([worklistRoute, detailRoute]);
+const domainObjectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/objects/$objectType/$objectId',
+  component: DomainObjectDetailPage,
+});
+
+const routeTree = rootRoute.addChildren([worklistRoute, detailRoute, domainObjectRoute]);
 
 export const router = createRouter({ routeTree });
 

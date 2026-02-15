@@ -5,12 +5,18 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.test.junit.QuarkusTest;
 
 @QuarkusTest
 class WorkItemResourceTest {
+
+        @BeforeEach
+        void resetResourceState() {
+                WorkItemResource.resetState();
+        }
 
     @Test
     void shouldShowMyBasket() {
@@ -56,5 +62,22 @@ class WorkItemResourceTest {
                 .when().post("/api/work-items/context/CLAIM/S-2001/documents")
                 .then().statusCode(200)
                 .body("fileName", equalTo("Pruefbericht.pdf"));
+    }
+
+    @Test
+    void shouldForwardTaskToColleague() {
+        given()
+                .contentType("application/json")
+                .body("""
+                        {
+                          "action": "FORWARD",
+                          "assignee": "Eva",
+                          "comment": "Bitte direkt übernehmen"
+                        }
+                        """)
+                .when().post("/api/work-items/WI-3001/actions")
+                .then().statusCode(200)
+                .body("assignedTo", equalTo("Eva"))
+                .body("status", equalTo("OPEN"));
     }
 }

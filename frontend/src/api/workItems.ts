@@ -2,10 +2,12 @@ import {
   BasketScope,
   DomainObjectType,
   WorkItemsApi,
+  WorkItemActionType,
   WorkItemStatus,
   type ContextViewDto,
   type DocumentDto,
   type UploadDocumentCommand,
+  type WorkItemActionCommand,
   type WorkItemDto,
   type WorkItemsPageDto,
 } from './generated';
@@ -91,6 +93,11 @@ export async function getWorkItemById(id: string) {
   return normalizeWorkItem(result);
 }
 
+export async function performWorkItemAction(id: string, command: WorkItemActionCommand) {
+  const result = await api.performWorkItemAction({ id, command });
+  return normalizeWorkItem(result);
+}
+
 export async function getContextView(objectType: DomainObjectType, objectId: string) {
   const result = await api.getContextView({ objectType, objectId });
   return normalizeContext(result);
@@ -101,6 +108,6 @@ export async function uploadDocument(objectType: DomainObjectType, objectId: str
   return normalizeDocument(result);
 }
 
-export { BasketScope, DomainObjectType, WorkItemStatus };
+export { BasketScope, DomainObjectType, WorkItemActionType, WorkItemStatus };
 
-export type { UploadDocumentCommand };
+export type { UploadDocumentCommand, WorkItemActionCommand };
