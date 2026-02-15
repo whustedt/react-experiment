@@ -4,6 +4,7 @@ import type {
   DocumentDto,
   DomainObjectType,
   UploadDocumentCommand,
+  WorkItemActionCommand,
   WorkItemDto,
   WorkItemsPageDto,
   WorkItemStatus,
@@ -48,6 +49,16 @@ export class WorkItemsApi {
   async getWorkItemById({ id }: { id: string }): Promise<WorkItemDto> {
     const response = await fetch(`${this.config.basePath}/work-items/${id}`);
     if (!response.ok) throw new Error('Failed to fetch work item');
+    return response.json() as Promise<WorkItemDto>;
+  }
+
+  async performWorkItemAction({ id, command }: { id: string; command: WorkItemActionCommand }): Promise<WorkItemDto> {
+    const response = await fetch(`${this.config.basePath}/work-items/${id}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(command),
+    });
+    if (!response.ok) throw new Error('Failed to execute work item action');
     return response.json() as Promise<WorkItemDto>;
   }
 

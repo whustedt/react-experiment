@@ -1,158 +1,156 @@
-import { ArrowBack, UploadFile } from '@mui/icons-material';
+import { ArrowBack, PlayArrow, TaskAlt, Update, West } from '@mui/icons-material';
 import {
   Alert,
-  Box,
   Button,
   Card,
   CardContent,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
+  MenuItem,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
 import { Link, useParams } from '@tanstack/react-router';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { useContextQuery, useUploadDocumentMutation, useWorkItemDetailQuery } from '../api/queries';
+import { DomainObjectType, WorkItemActionType } from '../../../api/workItems';
+import { useWorkItemActionMutation, useWorkItemDetailQuery } from '../api/queries';
 
-type UploadForm = {
-  fileName: string;
-  mimeType: string;
-  keywords: string;
+type ActionForm = {
+  action: WorkItemActionType;
+  assignee: string;
+  followUpAt: string;
+  comment: string;
+};
+
+const objectTypeLabelMap: Record<DomainObjectType, string> = {
+  CUSTOMER: 'Kunde',
+  CONTRACT: 'Vertrag',
+  CLAIM: 'Schaden',
 };
 
 export function WorkItemDetailPage() {
   const { id } = useParams({ from: '/work-items/$id' });
   const { data, isLoading } = useWorkItemDetailQuery(id);
-  const [tab, setTab] = React.useState(0);
+  const actionMutation = useWorkItemActionMutation(id);
 
-  const { control, handleSubmit, reset } = useForm<UploadForm>({
-    defaultValues: { fileName: '', mimeType: 'application/pdf', keywords: '' },
+  const form = useForm<ActionForm>({
+    defaultValues: {
+      action: WorkItemActionType.START,
+      assignee: '',
+      followUpAt: '',
+      comment: '',
+    },
   });
 
-  const contextQuery = useContextQuery(data?.objectType, data?.objectId);
-  const uploadMutation = useUploadDocumentMutation(data?.objectType, data?.objectId);
+  const selectedAction = form.watch('action');
 
   if (isLoading) return <Typography>Lädt…</Typography>;
   if (!data) return <Typography>Kein Datensatz gefunden.</Typography>;
 
-  const onSubmit = handleSubmit(async (values) => {
-    await uploadMutation.mutateAsync({
-      fileName: values.fileName,
-      mimeType: values.mimeType,
-      sizeInBytes: Math.floor(Math.random() * 200000) + 5000,
-      indexKeywords: values.keywords
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean),
-      uploadedBy: 'Alice',
+  const onSubmit = form.handleSubmit(async (values) => {
+    await actionMutation.mutateAsync({
+      action: values.action,
+      assignee: values.action === WorkItemActionType.FORWARD ? values.assignee : undefined,
+      followUpAt: values.action === WorkItemActionType.RESCHEDULE && values.followUpAt ? new Date(values.followUpAt).toISOString() : undefined,
+      comment: values.comment || undefined,
     });
-    reset({ fileName: '', mimeType: values.mimeType, keywords: '' });
+    form.reset({ ...values, comment: '' });
   });
 
   return (
-    <Stack spacing={2}>
-      <Button component={Link} to="/" startIcon={<ArrowBack />}>
-        Zurück zur Übersicht
-      </Button>
+    <Stack spacing={3}>
+      <Stack direction="row" spacing={1}>
+        <Button component={Link} to="/" startIcon={<ArrowBack />}>
+          Zur Übersicht
+        </Button>
+        <Link to="/objects/$objectType/$objectId" params={{ objectType: data.objectType, objectId: data.objectId }}>
+          <Button startIcon={<West />} color="inherit">
+            Zum Fachobjekt
+          </Button>
+        </Link>
+      </Stack>
 
-      <Card>
+      <Card sx={{ borderRadius: 4 }}>
         <CardContent>
-          <Stack spacing={1}>
-            <Typography variant="h5" fontWeight={700}>
+          <Stack spacing={1.5}>
+            <Typography variant="h4" fontWeight={700}>
               {data.title}
             </Typography>
             <Typography color="text.secondary">{data.description}</Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Chip label={`Objekt: ${data.objectLabel}`} />
-              <Chip label={`Typ: ${data.objectType}`} />
-              <Chip label={`Status: ${data.status}`} color="primary" variant="outlined" />
+              <Chip label={`Status: ${data.status}`} color="primary" />
               <Chip label={`Bearbeiter: ${data.assignedTo}`} />
+              <Chip label={`${objectTypeLabelMap[data.objectType]}: ${data.objectLabel}`} />
+              <Chip label={`Fällig am: ${new Date(data.dueAt).toLocaleDateString('de-DE')}`} />
             </Stack>
           </Stack>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card sx={{ borderRadius: 4, transition: 'all 180ms ease', '&:hover': { boxShadow: 6 } }}>
         <CardContent>
-          <Tabs value={tab} onChange={(_, newValue) => setTab(newValue)}>
-            <Tab label="Aufgaben im Kontext" />
-            <Tab label="Dokumente" />
-            <Tab label="Fachprotokolle" />
-          </Tabs>
+          <Typography variant="h6" mb={2} fontWeight={700}>
+            Aufgabensteuerung
+          </Typography>
+          <Stack component="form" spacing={2} onSubmit={onSubmit}>
+            <Controller
+              name="action"
+              control={form.control}
+              render={({ field }) => (
+                <TextField {...field} select label="Aktion" fullWidth>
+                  <MenuItem value={WorkItemActionType.START}>Starten</MenuItem>
+                  <MenuItem value={WorkItemActionType.FORWARD}>Weiterleiten</MenuItem>
+                  <MenuItem value={WorkItemActionType.RESCHEDULE}>Wiedervorlage</MenuItem>
+                  <MenuItem value={WorkItemActionType.COMPLETE}>Abschließen</MenuItem>
+                </TextField>
+              )}
+            />
 
-          {contextQuery.isLoading && <Typography sx={{ mt: 2 }}>Kontext wird geladen…</Typography>}
+            {selectedAction === WorkItemActionType.FORWARD && (
+              <Controller
+                name="assignee"
+                control={form.control}
+                rules={{ required: 'Bitte Zielbearbeiter eintragen.' }}
+                render={({ field, fieldState }) => (
+                  <TextField {...field} label="Weiterleiten an" error={Boolean(fieldState.error)} helperText={fieldState.error?.message} />
+                )}
+              />
+            )}
 
-          {contextQuery.data && tab === 0 && (
-            <List>
-              {contextQuery.data.tasks.map((task) => (
-                <ListItem key={task.id} divider>
-                  <ListItemText
-                    primary={`${task.title} (${task.status})`}
-                    secondary={`${task.objectLabel} · Fällig bis ${new Date(task.dueAt).toLocaleString('de-DE')}`}
+            {selectedAction === WorkItemActionType.RESCHEDULE && (
+              <Controller
+                name="followUpAt"
+                control={form.control}
+                rules={{ required: 'Bitte Wiedervorlagedatum wählen.' }}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    {...field}
+                    type="datetime-local"
+                    label="Wiedervorlage"
+                    InputLabelProps={{ shrink: true }}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
                   />
-                </ListItem>
-              ))}
-            </List>
-          )}
+                )}
+              />
+            )}
 
-          {contextQuery.data && tab === 1 && (
-            <Stack spacing={2} mt={2}>
-              <List>
-                {contextQuery.data.documents.map((doc) => (
-                  <ListItem key={doc.id} divider>
-                    <ListItemText
-                      primary={doc.fileName}
-                      secondary={`${doc.mimeType} · ${doc.sizeInBytes} Bytes · Index: ${doc.indexKeywords.join(', ')}`}
-                    />
-                  </ListItem>
-                ))}
-              </List>
+            <Controller name="comment" control={form.control} render={({ field }) => <TextField {...field} multiline minRows={2} label="Kommentar" />} />
 
-              <Box component="form" onSubmit={onSubmit}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                  <Controller
-                    name="fileName"
-                    control={control}
-                    render={({ field }) => <TextField {...field} label="Dateiname" required fullWidth />}
-                  />
-                  <Controller
-                    name="mimeType"
-                    control={control}
-                    render={({ field }) => <TextField {...field} label="Mime-Type" required sx={{ minWidth: 220 }} />}
-                  />
-                  <Controller
-                    name="keywords"
-                    control={control}
-                    render={({ field }) => <TextField {...field} label="Index-Keywords (CSV)" fullWidth />}
-                  />
-                  <Button type="submit" variant="contained" startIcon={<UploadFile />} disabled={uploadMutation.isPending}>
-                    Upload + Indizierung
-                  </Button>
-                </Stack>
-              </Box>
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={
+                selectedAction === WorkItemActionType.START ? <PlayArrow /> : selectedAction === WorkItemActionType.COMPLETE ? <TaskAlt /> : <Update />
+              }
+              disabled={actionMutation.isPending}
+            >
+              Aktion ausführen
+            </Button>
+          </Stack>
 
-              {uploadMutation.isSuccess && <Alert severity="success">Dokument wurde hochgeladen und indiziert.</Alert>}
-            </Stack>
-          )}
-
-          {contextQuery.data && tab === 2 && (
-            <List>
-              {contextQuery.data.protocolEntries.map((entry) => (
-                <ListItem key={entry.id} divider>
-                  <ListItemText
-                    primary={`${entry.source} · ${new Date(entry.timestamp).toLocaleString('de-DE')}`}
-                    secondary={entry.message}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
+          {actionMutation.isSuccess && <Alert severity="success" sx={{ mt: 2 }}>Aufgabe wurde aktualisiert.</Alert>}
         </CardContent>
       </Card>
     </Stack>

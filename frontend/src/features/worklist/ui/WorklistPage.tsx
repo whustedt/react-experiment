@@ -1,23 +1,29 @@
 import React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import PublicIcon from '@mui/icons-material/Public';
 import SearchIcon from '@mui/icons-material/Search';
-import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import WorkspacesIcon from '@mui/icons-material/Workspaces';
+import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { DataGrid, type GridColDef, type GridPaginationModel } from '@mui/x-data-grid';
 import { Link } from '@tanstack/react-router';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { BasketScope, DomainObjectType, WorkItemStatus } from '../../../api/workItems';
-import { useWorklistQuery } from '../api/queries';
+import { useGlobalWorkItemSearchQuery, useWorklistQuery } from '../api/queries';
 
-const filterSchema = z.object({
-  q: z.string().optional(),
+const basketFilterSchema = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'BLOCKED', 'DONE']).or(z.literal('')).default(''),
-  basket: z.enum(['MY', 'TEAM', 'COLLEAGUE']).default('MY'),
   colleague: z.string().optional(),
 });
+const globalSearchSchema = z.object({
+  q: z.string().min(2, 'Bitte mindestens 2 Zeichen eingeben.'),
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'BLOCKED', 'DONE']).or(z.literal('')).default(''),
+});
 
-type FilterFormValues = z.infer<typeof filterSchema>;
+type BasketFilterFormValues = z.infer<typeof basketFilterSchema>;
+type GlobalSearchFormValues = z.infer<typeof globalSearchSchema>;
 
 const statusColorMap: Record<WorkItemStatus, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
   OPEN: 'warning',
@@ -26,131 +32,92 @@ const statusColorMap: Record<WorkItemStatus, 'default' | 'warning' | 'info' | 's
   DONE: 'success',
 };
 
+const objectTypeLabelMap: Record<DomainObjectType, string> = { CUSTOMER: 'Kunde', CONTRACT: 'Vertrag', CLAIM: 'Schaden' };
+const basketTabs: { value: BasketScope; label: string; icon: React.ReactElement }[] = [
+  { value: BasketScope.MY, label: 'Meine Aufgaben', icon: <PersonSearchIcon /> },
+  { value: BasketScope.TEAM, label: 'Teamkorb', icon: <WorkspacesIcon /> },
+  { value: BasketScope.COLLEAGUE, label: 'Kollegenkorb', icon: <PersonSearchIcon /> },
+];
+
 export function WorklistPage() {
-  const { control, handleSubmit, watch } = useForm<FilterFormValues>({
-    resolver: zodResolver(filterSchema),
-    defaultValues: { q: '', status: '', basket: 'MY', colleague: '' },
+  const [basket, setBasket] = React.useState<BasketScope>(BasketScope.MY);
+  const [basketFilters, setBasketFilters] = React.useState<BasketFilterFormValues>({ status: '', colleague: '' });
+  const [globalFilters, setGlobalFilters] = React.useState<GlobalSearchFormValues | null>(null);
+  const [basketPaginationModel, setBasketPaginationModel] = React.useState<GridPaginationModel>({ page: 0, pageSize: 6 });
+  const [globalPaginationModel, setGlobalPaginationModel] = React.useState<GridPaginationModel>({ page: 0, pageSize: 6 });
+
+  const basketForm = useForm<BasketFilterFormValues>({ resolver: zodResolver(basketFilterSchema), defaultValues: { status: '', colleague: '' } });
+  const globalForm = useForm<GlobalSearchFormValues>({ resolver: zodResolver(globalSearchSchema), defaultValues: { q: '', status: '' } });
+
+  const basketQuery = useWorklistQuery({
+    page: basketPaginationModel.page,
+    size: basketPaginationModel.pageSize,
+    status: (basketFilters.status || undefined) as WorkItemStatus | undefined,
+    basket,
+    colleague: basket === BasketScope.COLLEAGUE ? basketFilters.colleague : undefined,
   });
 
-  const [filters, setFilters] = React.useState<FilterFormValues>({ q: '', status: '', basket: 'MY', colleague: '' });
-  const [paginationModel, setPaginationModel] = React.useState<GridPaginationModel>({ page: 0, pageSize: 6 });
-
-  const query = useWorklistQuery({
-    page: paginationModel.page,
-    size: paginationModel.pageSize,
-    q: filters.q || undefined,
-    status: (filters.status || undefined) as WorkItemStatus | undefined,
-    basket: filters.basket as BasketScope,
-    colleague: filters.basket === 'COLLEAGUE' ? filters.colleague : undefined,
-  });
+  const globalSearchQuery = useGlobalWorkItemSearchQuery(
+    { page: globalPaginationModel.page, size: globalPaginationModel.pageSize, q: globalFilters?.q ?? '', status: (globalFilters?.status || undefined) as WorkItemStatus | undefined },
+    Boolean(globalFilters?.q),
+  );
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', flex: 0.8 },
     { field: 'title', headerName: 'Aufgabe', flex: 1.4 },
-    { field: 'customerName', headerName: 'Kunde', flex: 1.2 },
-    { field: 'objectLabel', headerName: 'Fachobjekt', flex: 1.2 },
-    {
-      field: 'objectType',
-      headerName: 'Typ',
-      flex: 0.8,
-      valueFormatter: (value: DomainObjectType) =>
-        value === 'CUSTOMER' ? 'Kunde' : value === 'CONTRACT' ? 'Vertrag' : 'Schaden',
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      flex: 0.9,
-      renderCell: (params) => <Chip label={params.value} color={statusColorMap[params.value as WorkItemStatus]} size="small" />,
-    },
+    { field: 'customerName', headerName: 'Kunde', flex: 1.1 },
+    { field: 'objectLabel', headerName: 'Fachobjekt', flex: 1.1 },
+    { field: 'objectType', headerName: 'Typ', flex: 0.8, valueFormatter: (value: DomainObjectType) => objectTypeLabelMap[value] ?? value },
+    { field: 'status', headerName: 'Status', flex: 0.9, renderCell: (params) => <Chip label={params.value} color={statusColorMap[params.value as WorkItemStatus]} size="small" /> },
     { field: 'assignedTo', headerName: 'Bearbeiter', flex: 0.9 },
     {
       field: 'open',
       headerName: 'Aktion',
       sortable: false,
-      flex: 0.8,
+      flex: 1.3,
       renderCell: (params) => (
-        <Button component={Link} to="/work-items/$id" params={{ id: params.row.id }} startIcon={<OpenInNewIcon />}>
-          Öffnen
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Link to="/work-items/$id" params={{ id: String(params.row.id) }}>
+            <Button size="small" startIcon={<OpenInNewIcon />}>Aufgabe</Button>
+          </Link>
+          <Link to="/objects/$objectType/$objectId" params={{ objectType: params.row.objectType as DomainObjectType, objectId: String(params.row.objectId) }}>
+            <Button size="small" color="inherit">Fachobjekt</Button>
+          </Link>
+        </Stack>
       ),
     },
   ];
 
-  const onSubmit = (values: FilterFormValues) => {
-    setPaginationModel((prev) => ({ ...prev, page: 0 }));
-    setFilters(values);
-  };
-
-  const selectedBasket = watch('basket');
-
   return (
-    <Stack spacing={2}>
-      <Typography variant="h4" fontWeight={700}>
-        Aufgabenarbeitskorb
-      </Typography>
-      <Typography color="text.secondary">Mein Korb, Teamkorb, Kollegenkorb und globale Suchmöglichkeiten in einer Oberfläche.</Typography>
-      <Card>
+    <Stack spacing={3}>
+      <Card sx={{ background: 'linear-gradient(135deg, #22325f, #375cab)', color: '#fff', borderRadius: 4 }}><CardContent><Typography variant="h4" fontWeight={700}>Arbeitskorb</Typography><Typography sx={{ opacity: 0.85 }}>Korb-Switching ist getrennt von der globalen Bestandssuche.</Typography></CardContent></Card>
+      <Card sx={{ borderRadius: 4, transition: 'transform 180ms ease', '&:hover': { transform: 'translateY(-2px)' } }}>
         <CardContent>
-          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+          <Tabs value={basket} onChange={(_, value) => setBasket(value)}>{basketTabs.map((tab) => <Tab key={tab.value} icon={tab.icon} iconPosition="start" label={tab.label} value={tab.value} />)}</Tabs>
+          <Box component="form" onSubmit={basketForm.handleSubmit((values) => { setBasketPaginationModel((prev) => ({ ...prev, page: 0 })); setBasketFilters(values); })} mt={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
-              <Controller
-                name="q"
-                control={control}
-                render={({ field }) => <TextField {...field} label="Globale Suche" fullWidth placeholder="Kunde, Vertrag, Schaden, Text..." />}
-              />
-              <Controller
-                name="basket"
-                control={control}
-                render={({ field }) => (
-                  <TextField {...field} select label="Korb" sx={{ minWidth: 180 }}>
-                    <MenuItem value="MY">Mein Korb</MenuItem>
-                    <MenuItem value="TEAM">Teamkorb</MenuItem>
-                    <MenuItem value="COLLEAGUE">Kollegenkorb</MenuItem>
-                  </TextField>
-                )}
-              />
-              <Controller
-                name="status"
-                control={control}
-                render={({ field }) => (
-                  <TextField {...field} select label="Status" sx={{ minWidth: 180 }}>
-                    <MenuItem value="">Alle</MenuItem>
-                    <MenuItem value="OPEN">OPEN</MenuItem>
-                    <MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem>
-                    <MenuItem value="BLOCKED">BLOCKED</MenuItem>
-                    <MenuItem value="DONE">DONE</MenuItem>
-                  </TextField>
-                )}
-              />
-              {selectedBasket === 'COLLEAGUE' && (
-                <Controller
-                  name="colleague"
-                  control={control}
-                  render={({ field }) => <TextField {...field} label="Kollege" sx={{ minWidth: 180 }} placeholder="z.B. Bob" />}
-                />
-              )}
-              <Button type="submit" variant="contained" startIcon={<SearchIcon />}>
-                Suchen
-              </Button>
+              <Controller name="status" control={basketForm.control} render={({ field }) => <TextField {...field} select label="Status" sx={{ minWidth: 220 }}><MenuItem value="">Alle</MenuItem><MenuItem value="OPEN">OPEN</MenuItem><MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem><MenuItem value="BLOCKED">BLOCKED</MenuItem><MenuItem value="DONE">DONE</MenuItem></TextField>} />
+              {basket === BasketScope.COLLEAGUE && <Controller name="colleague" control={basketForm.control} render={({ field }) => <TextField {...field} label="Kollege" placeholder="z. B. Bob" sx={{ minWidth: 240 }} />} />}
+              <Button type="submit" variant="contained" startIcon={<SearchIcon />}>Korb laden</Button>
             </Stack>
           </Box>
+          {basketFilters.colleague === '' && basket === BasketScope.COLLEAGUE && <Alert severity="info" sx={{ mt: 2 }}>Bitte Name eines Kollegen eintragen.</Alert>}
+          <Box mt={2}><DataGrid autoHeight rows={basketQuery.data?.items ?? []} columns={columns} loading={basketQuery.isLoading} paginationMode="server" rowCount={basketQuery.data?.total ?? 0} paginationModel={basketPaginationModel} onPaginationModelChange={setBasketPaginationModel} pageSizeOptions={[6, 12, 24]} disableRowSelectionOnClick /></Box>
         </CardContent>
       </Card>
-
-      {filters.basket === 'COLLEAGUE' && !filters.colleague && <Alert severity="info">Bitte einen Namen setzen, um den Kollegenkorb zu laden.</Alert>}
-
-      <DataGrid
-        autoHeight
-        rows={query.data?.items ?? []}
-        columns={columns}
-        loading={query.isLoading}
-        paginationMode="server"
-        rowCount={query.data?.total ?? 0}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[6, 12, 24]}
-        disableRowSelectionOnClick
-      />
+      <Card sx={{ borderRadius: 4, background: '#0f172a', color: '#fff' }}>
+        <CardContent>
+          <Stack direction="row" spacing={1} alignItems="center" mb={2}><PublicIcon /><Typography variant="h6" fontWeight={700}>Globale Bestandssuche</Typography></Stack>
+          <Box component="form" onSubmit={globalForm.handleSubmit((values) => { setGlobalPaginationModel((prev) => ({ ...prev, page: 0 })); setGlobalFilters(values); })}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <Controller name="q" control={globalForm.control} render={({ field, fieldState }) => <TextField {...field} label="Suche über alle Aufgaben" fullWidth error={Boolean(fieldState.error)} helperText={fieldState.error?.message} sx={{ '& .MuiInputBase-root': { bgcolor: '#fff', borderRadius: 2 } }} />} />
+              <Controller name="status" control={globalForm.control} render={({ field }) => <TextField {...field} select label="Status" sx={{ minWidth: 220, bgcolor: '#fff', borderRadius: 2 }}><MenuItem value="">Alle</MenuItem><MenuItem value="OPEN">OPEN</MenuItem><MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem><MenuItem value="BLOCKED">BLOCKED</MenuItem><MenuItem value="DONE">DONE</MenuItem></TextField>} />
+              <Button type="submit" variant="contained" color="secondary" startIcon={<SearchIcon />}>Global suchen</Button>
+            </Stack>
+          </Box>
+          {globalFilters && <Box mt={2}><DataGrid autoHeight rows={globalSearchQuery.data?.items ?? []} columns={columns} loading={globalSearchQuery.isLoading} paginationMode="server" rowCount={globalSearchQuery.data?.total ?? 0} paginationModel={globalPaginationModel} onPaginationModelChange={setGlobalPaginationModel} pageSizeOptions={[6, 12]} disableRowSelectionOnClick sx={{ bgcolor: '#fff', borderRadius: 2 }} /></Box>}
+        </CardContent>
+      </Card>
     </Stack>
   );
 }

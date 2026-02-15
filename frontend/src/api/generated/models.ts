@@ -74,3 +74,17 @@ export interface UploadDocumentCommand {
   indexKeywords?: string[];
   uploadedBy?: string;
 }
+
+export enum WorkItemActionType {
+  START = 'START',
+  FORWARD = 'FORWARD',
+  RESCHEDULE = 'RESCHEDULE',
+  COMPLETE = 'COMPLETE',
+}
+
+export interface WorkItemActionCommand {
+  action?: WorkItemActionType;
+  comment?: string;
+  assignee?: string;
+  followUpAt?: string;
+}

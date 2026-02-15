@@ -32,7 +32,7 @@ public class WorkItemResource {
     private static final String CURRENT_USER = "Alice";
     private static final String CURRENT_TEAM = "Leistung-Team Nord";
 
-    private static final List<WorkItemDto> WORK_ITEMS = seedItems();
+    private static final List<WorkItemDto> WORK_ITEMS = new ArrayList<>(seedItems());
     private static final Map<String, List<DocumentDto>> DOCUMENTS_BY_OBJECT = seedDocuments();
     private static final Map<String, List<ProtocolEntryDto>> PROTOCOL_BY_OBJECT = seedProtocolEntries();
 
@@ -71,8 +71,53 @@ public class WorkItemResource {
     @Path("/{id}")
     @Operation(operationId = "getWorkItemById")
     public WorkItemDto getWorkItemById(@PathParam("id") String id) {
-        return WORK_ITEMS.stream().filter(item -> item.id.equals(id)).findFirst()
-                .orElseThrow(() -> new NotFoundException("Work item not found: " + id));
+        return findWorkItem(id);
+    }
+
+    @POST
+    @Path("/{id}/actions")
+    @Operation(operationId = "performWorkItemAction")
+    public WorkItemDto performWorkItemAction(@PathParam("id") String id, WorkItemActionCommand command) {
+        WorkItemDto item = findWorkItem(id);
+
+        if (command == null || command.action == null) {
+            throw new NotFoundException("Action command requires action");
+        }
+
+        switch (command.action) {
+            case START -> {
+                item.status = WorkItemStatus.IN_PROGRESS;
+                item.assignedTo = CURRENT_USER;
+                addProtocol(item, "Aktion", "%s hat die Aufgabe gestartet.".formatted(CURRENT_USER), command.comment);
+            }
+            case FORWARD -> {
+                String assignee = command.assignee == null || command.assignee.isBlank() ? null : command.assignee;
+                if (assignee == null) {
+                    throw new NotFoundException("Forward action requires assignee");
+                }
+                item.assignedTo = assignee;
+                item.status = WorkItemStatus.OPEN;
+                addProtocol(item, "Aktion", "%s hat die Aufgabe an %s weitergeleitet.".formatted(CURRENT_USER, assignee),
+                        command.comment);
+            }
+            case RESCHEDULE -> {
+                if (command.followUpAt == null) {
+                    throw new NotFoundException("Reschedule action requires followUpAt");
+                }
+                item.dueAt = command.followUpAt;
+                item.status = WorkItemStatus.BLOCKED;
+                addProtocol(item, "Aktion", "%s hat die Aufgabe auf Wiedervorlage gesetzt (%s).".formatted(
+                        CURRENT_USER,
+                        command.followUpAt.toLocalDate()), command.comment);
+            }
+            case COMPLETE -> {
+                item.status = WorkItemStatus.DONE;
+                addProtocol(item, "Aktion", "%s hat die Aufgabe abgeschlossen.".formatted(CURRENT_USER), command.comment);
+            }
+            default -> throw new NotFoundException("Unsupported action " + command.action);
+        }
+
+        return item;
     }
 
     @GET
@@ -134,26 +179,37 @@ public class WorkItemResource {
                         "LOG-" + UUID.randomUUID().toString().substring(0, 8),
                         OffsetDateTime.now(ZoneOffset.UTC),
                         "Dokumentenservice",
-                        "Dokument %s hochgeladen und indexiert (%s).".formatted(document.fileName,
-                                String.join(", ", document.indexKeywords))));
+                        "Dokument %s hochgeladen und indexiert.".formatted(command.fileName)));
 
         return document;
     }
 
+    private static WorkItemDto findWorkItem(String id) {
+        return WORK_ITEMS.stream().filter(item -> item.id.equals(id)).findFirst()
+                .orElseThrow(() -> new NotFoundException("Work item not found: " + id));
+    }
+
+    private static void addProtocol(WorkItemDto item, String source, String message, String comment) {
+        String details = comment == null || comment.isBlank() ? message : message + " Hinweis: " + comment;
+        PROTOCOL_BY_OBJECT.computeIfAbsent(contextKey(item.objectType, item.objectId), k -> new ArrayList<>()).add(0,
+                new ProtocolEntryDto(
+                        "LOG-" + UUID.randomUUID().toString().substring(0, 8),
+                        OffsetDateTime.now(ZoneOffset.UTC),
+                        source,
+                        details));
+    }
+
     private static boolean basketFilter(WorkItemDto item, BasketScope basket, String colleague) {
-        return switch (basket == null ? BasketScope.MY : basket) {
+        return switch (basket) {
             case MY -> Objects.equals(item.assignedTo, CURRENT_USER);
             case TEAM -> Objects.equals(item.team, CURRENT_TEAM);
             case COLLEAGUE -> colleague != null && !colleague.isBlank() && item.assignedTo.equalsIgnoreCase(colleague);
         };
     }
 
-    private static boolean matchesQuery(WorkItemDto item, String rawQuery) {
-        String query = rawQuery.toLowerCase(Locale.ROOT);
-        return safe(item.customerName).toLowerCase(Locale.ROOT).contains(query)
-                || safe(item.contractNo).toLowerCase(Locale.ROOT).contains(query)
-                || safe(item.claimNo).toLowerCase(Locale.ROOT).contains(query)
-                || safe(item.title).toLowerCase(Locale.ROOT).contains(query)
+    private static boolean matchesQuery(WorkItemDto item, String q) {
+        String query = q.toLowerCase(Locale.ROOT).trim();
+        return safe(item.title).toLowerCase(Locale.ROOT).contains(query)
                 || safe(item.description).toLowerCase(Locale.ROOT).contains(query)
                 || safe(item.assignedTo).toLowerCase(Locale.ROOT).contains(query)
                 || safe(item.objectId).toLowerCase(Locale.ROOT).contains(query)
