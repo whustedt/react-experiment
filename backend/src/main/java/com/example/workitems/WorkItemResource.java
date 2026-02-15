@@ -108,6 +108,47 @@ public class WorkItemResource {
                 PROTOCOL_BY_OBJECT.getOrDefault(contextKey, List.of()));
     }
 
+
+    @POST
+    @Path("/{id}/actions")
+    @Operation(operationId = "applyWorkItemAction")
+    public WorkItemDto applyWorkItemAction(@PathParam("id") String id, WorkItemActionCommand command) {
+        WorkItemDto item = WORK_ITEMS.stream().filter(workItem -> workItem.id.equals(id)).findFirst()
+                .orElseThrow(() -> new NotFoundException("Work item not found: " + id));
+
+        if (command == null || command.action == null) {
+            throw new NotFoundException("Action command requires action");
+        }
+
+        switch (command.action) {
+            case START -> item.status = WorkItemStatus.IN_PROGRESS;
+            case FORWARD -> {
+                if (command.assignee == null || command.assignee.isBlank()) {
+                    throw new NotFoundException("Forward action requires assignee");
+                }
+                item.assignedTo = command.assignee;
+                item.status = WorkItemStatus.OPEN;
+            }
+            case RESCHEDULE -> {
+                if (command.reminderAt == null) {
+                    throw new NotFoundException("Reschedule action requires reminderAt");
+                }
+                item.dueAt = command.reminderAt;
+                item.status = WorkItemStatus.BLOCKED;
+            }
+            case COMPLETE -> item.status = WorkItemStatus.DONE;
+        }
+
+        PROTOCOL_BY_OBJECT.computeIfAbsent(contextKey(item.objectType, item.objectId), k -> new ArrayList<>()).add(0,
+                new ProtocolEntryDto(
+                        "LOG-" + UUID.randomUUID().toString().substring(0, 8),
+                        OffsetDateTime.now(ZoneOffset.UTC),
+                        "Arbeitskorb",
+                        actionMessage(item, command)));
+
+        return item;
+    }
+
     @POST
     @Path("/context/{objectType}/{objectId}/documents")
     @Operation(operationId = "uploadDocument")
@@ -138,6 +179,16 @@ public class WorkItemResource {
                                 String.join(", ", document.indexKeywords))));
 
         return document;
+    }
+
+
+    private static String actionMessage(WorkItemDto item, WorkItemActionCommand command) {
+        return switch (command.action) {
+            case START -> "Aufgabe %s wurde gestartet.".formatted(item.id);
+            case FORWARD -> "Aufgabe %s wurde an %s weitergeleitet.".formatted(item.id, command.assignee);
+            case RESCHEDULE -> "Aufgabe %s wurde auf Wiedervorlage %s gesetzt.".formatted(item.id, command.reminderAt);
+            case COMPLETE -> "Aufgabe %s wurde abgeschlossen.".formatted(item.id);
+        };
     }
 
     private static boolean basketFilter(WorkItemDto item, BasketScope basket, String colleague) {

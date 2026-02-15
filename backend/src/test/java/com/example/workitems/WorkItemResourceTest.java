@@ -57,4 +57,42 @@ class WorkItemResourceTest {
                 .then().statusCode(200)
                 .body("fileName", equalTo("Pruefbericht.pdf"));
     }
+
+    @Test
+    void shouldApplyWorkItemActions() {
+        given()
+                .contentType("application/json")
+                .body("""
+                        {
+                          "action": "START"
+                        }
+                        """)
+                .when().post("/api/work-items/WI-3001/actions")
+                .then().statusCode(200)
+                .body("status", equalTo("IN_PROGRESS"));
+
+        given()
+                .contentType("application/json")
+                .body("""
+                        {
+                          "action": "FORWARD",
+                          "assignee": "Nina"
+                        }
+                        """)
+                .when().post("/api/work-items/WI-3001/actions")
+                .then().statusCode(200)
+                .body("assignedTo", equalTo("Nina"));
+
+        given()
+                .contentType("application/json")
+                .body("""
+                        {
+                          "action": "COMPLETE"
+                        }
+                        """)
+                .when().post("/api/work-items/WI-3001/actions")
+                .then().statusCode(200)
+                .body("status", equalTo("DONE"));
+    }
+
 }

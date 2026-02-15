@@ -25,6 +25,15 @@ export interface SearchWorkItemsParams {
   objectId?: string;
 }
 
+export type WorkItemActionType = 'START' | 'FORWARD' | 'RESCHEDULE' | 'COMPLETE';
+
+export interface WorkItemActionCommand {
+  action: WorkItemActionType;
+  assignee?: string;
+  reminderAt?: string;
+  note?: string;
+}
+
 function normalizeWorkItem(item: WorkItemDto): Required<WorkItemDto> {
   return {
     id: item.id ?? '',
@@ -88,6 +97,21 @@ export async function searchWorkItems(params: SearchWorkItemsParams) {
 
 export async function getWorkItemById(id: string) {
   const result = await api.getWorkItemById({ id });
+  return normalizeWorkItem(result);
+}
+
+export async function applyWorkItemAction(id: string, command: WorkItemActionCommand) {
+  const response = await fetch(`/api/work-items/${id}/actions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Aktion konnte nicht ausgeführt werden (${response.status}).`);
+  }
+
+  const result = (await response.json()) as WorkItemDto;
   return normalizeWorkItem(result);
 }
 
