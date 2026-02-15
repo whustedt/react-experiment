@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "format": "prettier --write .",
-    "api:gen": "openapi-generator-cli generate -i http://localhost:8080/q/openapi -g typescript-fetch -o src/api/generated --additional-properties=typescriptThreePlus=true,supportsES6=true,modelPropertyNaming=original,enumPropertyNaming=original"
+    "api:gen": "openapi-generator-cli generate -i http://localhost:8080/q/openapi -g typescript-fetch -o src/api/generated --additional-properties=typescriptThreePlus=true,supportsES6=true,modelPropertyNaming=original,enumPropertyNaming=original",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",
