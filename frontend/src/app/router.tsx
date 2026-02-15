@@ -1,10 +1,19 @@
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+} from '@tanstack/react-router';
 import { AppLayout } from './layout';
+import { RouteErrorComponent, RouteNotFoundComponent } from './routeFallbacks';
 import { DomainObjectDetailPage } from '../features/domainObjectDetail/ui/DomainObjectDetailPage';
 import { WorkItemDetailPage } from '../features/workItemDetail/ui/WorkItemDetailPage';
 import { WorklistPage } from '../features/worklist/ui/WorklistPage';
 
-const rootRoute = createRootRoute({ component: AppLayout });
+const rootRoute = createRootRoute({
+  component: AppLayout,
+  errorComponent: RouteErrorComponent,
+  notFoundComponent: RouteNotFoundComponent,
+});
 
 const worklistRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -24,7 +33,11 @@ const domainObjectRoute = createRoute({
   component: DomainObjectDetailPage,
 });
 
-const routeTree = rootRoute.addChildren([worklistRoute, detailRoute, domainObjectRoute]);
+const routeTree = rootRoute.addChildren([
+  worklistRoute,
+  detailRoute,
+  domainObjectRoute,
+]);
 
 export const router = createRouter({ routeTree });
 

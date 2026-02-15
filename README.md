@@ -1,81 +1,52 @@
-# Quarkus + Quinoa + React Workbasket Beispiel
+# Quarkus + React Enterprise Starter (Workbasket)
 
-Dieses Repository zeigt eine stabile, wartbare Enterprise-Basis mit **Quarkus Backend** und **React/Vite Frontend**. Fokus: tabellenlastige Workbasket-App mit klaren Architekturgrenzen.
+Dieses Repository ist als **ausbaufähige Enterprise-Basis** aufgebaut: Quarkus Backend, React/Vite Frontend, klare Schichten, nachvollziehbare Konventionen und Team-Onboarding für Kolleg:innen mit starkem Java/JEE-Hintergrund.
 
-## Struktur
+## Warum diese Basis?
 
-- `backend/` – Quarkus REST API, OpenAPI, Quinoa Integration
-- `frontend/` – React + Vite + TanStack Router/Query + MUI
-- `.devcontainer/devcontainer.json` – reproduzierbare Dev-Umgebung
-- `README.md`
-- `.gitignore`
+- **Skalierbarkeit im Team**: Feature-first Struktur statt ungeordneter Ordnerlandschaft.
+- **Wartbarkeit**: API-Grenze über OpenAPI, UI und Datenzugriff sauber getrennt.
+- **Einarbeitung**: klare Regeln und Leitfäden, damit auch JS/TS-Einsteiger schnell produktiv werden.
 
-## Architektur-Überblick
+## Projektstruktur
 
-### Schichten
+- `backend/` – Quarkus REST API, OpenAPI Spezifikation
+- `frontend/` – React + TypeScript + TanStack Router/Query + MUI
+- `docs/ARCHITECTURE.md` – Architekturregeln und Erweiterungsstrategie
+- `docs/ONBOARDING_TS_FOR_JAVA_DEVS.md` – Einstieg für Java/JEE Kolleg:innen
 
-1. **Backend (`backend/`)**
-   - Liefert API unter `/api/*`
-   - Dokumentiert OpenAPI unter `/q/openapi`
-   - Swagger UI unter `/q/swagger-ui`
-2. **Frontend (`frontend/`)**
-   - Feature-first aufgebaut
-   - Routing über TanStack Router
-   - Server-State über TanStack Query
-3. **OpenAPI Boundary**
-   - DTOs kommen aus generated client (`src/api/generated`)
-   - Thin Wrapper in `src/api/workItems.ts` normalisiert optionale Felder
+## Architekturprinzipien
 
-### Feature-first Struktur
+1. **Feature-first Frontend** (`features/*`) statt technischer Sammelordner.
+2. **Server-State in TanStack Query**, nicht in globalen Singleton-Stores.
+3. **Formvalidierung mit React Hook Form + Zod**.
+4. **OpenAPI als Vertragsgrenze** zwischen Frontend und Backend.
+5. **Gemeinsame Wiederverwendung in `shared/`**, aber ohne versteckte Fachlogik.
+
+## Frontend Überblick
 
 ```text
 frontend/src/
   app/
+    config/            # env + app defaults
+    providers.tsx      # Theme + QueryClient + Router
+    queryClient.ts     # zentrale Query Defaults
+    router.tsx         # Route-Definition inkl. Error/NotFound
+    theme.ts           # MUI Theme
   api/
-    generated/
+    generated/         # OpenAPI generated client (nicht manuell editieren)
     client.ts
-    workItems.ts
+    workItems.ts       # normalisierender Wrapper
   features/
     worklist/
-      api/queries.ts
-      ui/WorklistPage.tsx
     workItemDetail/
-      api/queries.ts
-      ui/WorkItemDetailPage.tsx
+    domainObjectDetail/
+  shared/
+    domain/            # z. B. Label-/Status-Mappings
+    ui/                # z. B. QueryState
 ```
 
-## Teamvereinbarung (7 Regeln)
-
-1. **Kein HTTP in UI-Komponenten** – nur `src/api/*` + Query Hooks.
-2. **Pro Feature genau ein Datenzugriffspfad** – Query Keys + Hooks in `features/*/api`.
-3. **Forms nur mit React Hook Form + Zod**.
-4. **MUI als Standard-UI**.
-5. **DTO/Models nur aus OpenAPI**.
-6. **Lint/Prettier ab Tag 1**.
-7. **Feature-first statt globale technische Ordner**.
-
-## Start im Dev Container
-
-1. Repo in VS Code öffnen.
-2. `Reopen in Container` ausführen.
-3. Backend starten:
-   ```bash
-   cd backend
-   mvn quarkus:dev
-   ```
-4. Frontend separat (optional, wenn ohne Quinoa dev flow getestet werden soll):
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-## Start ohne Dev Container
-
-Voraussetzungen:
-- Java 17+
-- Maven 3.9+
-- Node 20+
+## Start im Dev-Setup
 
 ### Backend
 
@@ -93,32 +64,31 @@ npm install
 npm run dev
 ```
 
-## OpenAPI Regeneration
+## Qualitätschecks
 
-Wenn das Backend läuft (`localhost:8080`):
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+```bash
+cd backend
+mvn test
+```
+
+## OpenAPI Client regenerieren
+
+(Backend muss unter `localhost:8080` laufen)
 
 ```bash
 cd frontend
 npm run api:gen
 ```
 
-Der Befehl überschreibt bewusst den Placeholder in `src/api/generated/`.
-
-## Debug-Tipps
-
-### Backend
-- API testen: `GET http://localhost:8080/api/work-items`
-- OpenAPI: `http://localhost:8080/q/openapi`
-- Swagger UI: `http://localhost:8080/q/swagger-ui`
-
-### Frontend
-- Vite UI: `http://localhost:4200`
-- Query/Filter prüfen über Network Tab (`/api/work-items?...`)
-- Detailseite: `/work-items/WI-1001`
-
-## Wichtige URLs
+## URLs
 
 - UI: `http://localhost:4200`
-- API Basis: `http://localhost:8080/api`
+- API: `http://localhost:8080/api`
+- OpenAPI: `http://localhost:8080/q/openapi`
 - Swagger UI: `http://localhost:8080/q/swagger-ui`
-- OpenAPI JSON/YAML: `http://localhost:8080/q/openapi`
