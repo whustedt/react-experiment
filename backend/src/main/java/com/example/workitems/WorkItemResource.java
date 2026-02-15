@@ -210,33 +210,33 @@ public class WorkItemResource {
 
     private static Map<String, List<DocumentDto>> seedDocuments() {
         Map<String, List<DocumentDto>> docs = new HashMap<>();
-        docs.put(contextKey(DomainObjectType.CLAIM, "S-2001"), List.of(
+        docs.put(contextKey(DomainObjectType.CLAIM, "S-2001"), new ArrayList<>(List.of(
                 new DocumentDto("DOC-1001", "Reparaturkostenvoranschlag.pdf", "application/pdf", 232_112,
                         List.of("Schaden", "Werkstatt", "Kalkulation"),
                         OffsetDateTime.of(2024, 6, 1, 11, 30, 0, 0, ZoneOffset.UTC), "Clara"),
                 new DocumentDto("DOC-1002", "Schadenfoto_01.jpg", "image/jpeg", 1_102_112,
                         List.of("Foto", "Frontschaden"),
-                        OffsetDateTime.of(2024, 6, 1, 11, 32, 0, 0, ZoneOffset.UTC), "Clara")));
+                        OffsetDateTime.of(2024, 6, 1, 11, 32, 0, 0, ZoneOffset.UTC), "Clara"))));
 
-        docs.put(contextKey(DomainObjectType.CONTRACT, "V-1001"), List.of(
+        docs.put(contextKey(DomainObjectType.CONTRACT, "V-1001"), new ArrayList<>(List.of(
                 new DocumentDto("DOC-1003", "Vertragsentwurf_v2.docx",
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 92_400,
                         List.of("Angebot", "Vertragsänderung"),
-                        OffsetDateTime.of(2024, 6, 2, 10, 0, 0, 0, ZoneOffset.UTC), "Bob")));
+                        OffsetDateTime.of(2024, 6, 2, 10, 0, 0, 0, ZoneOffset.UTC), "Bob"))));
         return docs;
     }
 
     private static Map<String, List<ProtocolEntryDto>> seedProtocolEntries() {
         Map<String, List<ProtocolEntryDto>> logs = new HashMap<>();
-        logs.put(contextKey(DomainObjectType.CLAIM, "S-2001"), List.of(
+        logs.put(contextKey(DomainObjectType.CLAIM, "S-2001"), new ArrayList<>(List.of(
                 new ProtocolEntryDto("LOG-2001", OffsetDateTime.of(2024, 6, 1, 11, 40, 0, 0, ZoneOffset.UTC),
                         "Fachprotokoll", "Schadenmeldung eingegangen und Erstprüfung gestartet."),
                 new ProtocolEntryDto("LOG-2002", OffsetDateTime.of(2024, 6, 2, 9, 0, 0, 0, ZoneOffset.UTC),
-                        "Regelwerk", "Automatische Deckungsprüfung ohne Treffer abgeschlossen.")));
+                        "Regelwerk", "Automatische Deckungsprüfung ohne Treffer abgeschlossen."))));
 
-        logs.put(contextKey(DomainObjectType.CONTRACT, "V-1001"), List.of(
+        logs.put(contextKey(DomainObjectType.CONTRACT, "V-1001"), new ArrayList<>(List.of(
                 new ProtocolEntryDto("LOG-2003", OffsetDateTime.of(2024, 6, 2, 9, 30, 0, 0, ZoneOffset.UTC),
-                        "Bestand", "Vertragsverlängerung aus Bestand ausgelöst.")));
+                        "Bestand", "Vertragsverlängerung aus Bestand ausgelöst."))));
         return logs;
     }
 }
