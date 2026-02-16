@@ -42,9 +42,21 @@ docs/
 2. **Single source of truth**: Serverdaten über TanStack Query.
 3. **Feature ownership**: Fachlogik liegt pro Feature gebündelt.
 4. **UI entkoppelt von HTTP**: Komponenten konsumieren Hooks/Fassaden statt `fetch`.
-5. **Strict TypeScript**: Frühzeitige Fehlererkennung statt späte Laufzeitfehler.
+5. **Form-Validierung mit Zod**: Fachregeln in Schemas + Typsicherheit via `z.infer`.
+6. **Strict TypeScript**: Frühzeitige Fehlererkennung statt späte Laufzeitfehler.
 
-Details siehe `docs/architecture.md`.
+Details siehe `docs/architecture.md` (inkl. Abschnitt „Frontend-Stack und Begründung“ und Formular-/Validierungsstrategie).
+
+## Schnell orientieren: Wo liegt was?
+
+- **Frontend Einstiegspunkt**: `frontend/src/app/providers.tsx` + `frontend/src/app/router.tsx`
+- **Frontend Feature-Beispiel**: `frontend/src/features/worklist/`
+  - `ui/WorklistPage.tsx` (Seitenkomposition)
+  - `ui/worklistColumns.tsx` (Tabellenspalten)
+  - `model/forms.ts` (Zod-Schemas + Form-Typen)
+  - `api/queries.ts` (TanStack Query Hooks)
+- **Backend Einstiegspunkt**: `backend/src/main/java/com/example/workitems/WorkItemResource.java`
+- **Backend In-Memory Daten**: `backend/src/main/java/com/example/workitems/store/WorkItemInMemoryStore.java`
 
 ## Einstieg (für Teams)
 
