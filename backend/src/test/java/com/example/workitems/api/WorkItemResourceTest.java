@@ -1,4 +1,4 @@
-package com.example.workitems;
+package com.example.workitems.api;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
@@ -8,15 +8,22 @@ import static org.hamcrest.Matchers.hasSize;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import jakarta.inject.Inject;
+
+import com.example.workitems.application.WorkItemService;
+
 import io.quarkus.test.junit.QuarkusTest;
 
 @QuarkusTest
 class WorkItemResourceTest {
 
-        @BeforeEach
-        void resetResourceState() {
-                WorkItemResource.resetState();
-        }
+    @Inject
+    WorkItemService workItemService;
+
+    @BeforeEach
+    void resetResourceState() {
+        workItemService.resetState();
+    }
 
     @Test
     void shouldShowMyBasket() {

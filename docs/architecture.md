@@ -27,6 +27,23 @@ src/
 - `api/`: zentraler Zugriff auf Backend; UI ruft niemals `fetch` direkt auf.
 - `features/`: kapseln Use-Cases Ende-zu-Ende.
 
+## Backend-Schichten
+
+```text
+src/main/java/com/example/workitems/
+  api/          # HTTP-Endpoints (JAX-RS)
+  application/  # Fachliche Use-Case-Logik
+  dto/          # API-Datenstrukturen
+  model/        # Domänen-Enums
+```
+
+### Verantwortlichkeiten
+
+- `api/`: nimmt Requests entgegen, delegiert an Services.
+- `application/`: enthält Filter-/Aktionslogik und hält den Zustand konsistent.
+- `dto/`: transportiert Daten zwischen API und Frontend.
+- `model/`: zentrale, wiederverwendbare Domänenwerte (Status, Scope, Typen).
+
 ## API- und Datenstrategie
 
 - DTOs kommen ausschließlich aus dem OpenAPI Generator (`src/api/generated`).

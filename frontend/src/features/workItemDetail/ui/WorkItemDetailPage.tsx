@@ -1,19 +1,13 @@
 import { ArrowBack, PlayArrow, TaskAlt, Update, West } from '@mui/icons-material';
-import {
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { Link, useParams } from '@tanstack/react-router';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { DomainObjectType, WorkItemActionType } from '../../../api/workItems';
+import { WorkItemActionType } from '../../../api/workItems';
+import {
+  DOMAIN_OBJECT_LABEL_MAP,
+  WORK_ITEM_ACTION_LABEL_MAP,
+} from '../../../shared/constants/workItemDisplay';
 import { useWorkItemActionMutation, useWorkItemDetailQuery } from '../api/queries';
 
 type ActionForm = {
@@ -23,11 +17,11 @@ type ActionForm = {
   comment: string;
 };
 
-const objectTypeLabelMap: Record<DomainObjectType, string> = {
-  CUSTOMER: 'Kunde',
-  CONTRACT: 'Vertrag',
-  CLAIM: 'Schaden',
-};
+function getActionIcon(action: WorkItemActionType) {
+  if (action === WorkItemActionType.START) return <PlayArrow />;
+  if (action === WorkItemActionType.COMPLETE) return <TaskAlt />;
+  return <Update />;
+}
 
 export function WorkItemDetailPage() {
   const { id } = useParams({ from: '/work-items/$id' });
@@ -52,9 +46,13 @@ export function WorkItemDetailPage() {
     await actionMutation.mutateAsync({
       action: values.action,
       assignee: values.action === WorkItemActionType.FORWARD ? values.assignee : undefined,
-      followUpAt: values.action === WorkItemActionType.RESCHEDULE && values.followUpAt ? new Date(values.followUpAt).toISOString() : undefined,
+      followUpAt:
+        values.action === WorkItemActionType.RESCHEDULE && values.followUpAt
+          ? new Date(values.followUpAt).toISOString()
+          : undefined,
       comment: values.comment || undefined,
     });
+
     form.reset({ ...values, comment: '' });
   });
 
@@ -81,7 +79,7 @@ export function WorkItemDetailPage() {
             <Stack direction="row" spacing={1} flexWrap="wrap">
               <Chip label={`Status: ${data.status}`} color="primary" />
               <Chip label={`Bearbeiter: ${data.assignedTo}`} />
-              <Chip label={`${objectTypeLabelMap[data.objectType]}: ${data.objectLabel}`} />
+              <Chip label={`${DOMAIN_OBJECT_LABEL_MAP[data.objectType]}: ${data.objectLabel}`} />
               <Chip label={`Fällig am: ${new Date(data.dueAt).toLocaleDateString('de-DE')}`} />
             </Stack>
           </Stack>
@@ -93,16 +91,18 @@ export function WorkItemDetailPage() {
           <Typography variant="h6" mb={2} fontWeight={700}>
             Aufgabensteuerung
           </Typography>
+
           <Stack component="form" spacing={2} onSubmit={onSubmit}>
             <Controller
               name="action"
               control={form.control}
               render={({ field }) => (
                 <TextField {...field} select label="Aktion" fullWidth>
-                  <MenuItem value={WorkItemActionType.START}>Starten</MenuItem>
-                  <MenuItem value={WorkItemActionType.FORWARD}>Weiterleiten</MenuItem>
-                  <MenuItem value={WorkItemActionType.RESCHEDULE}>Wiedervorlage</MenuItem>
-                  <MenuItem value={WorkItemActionType.COMPLETE}>Abschließen</MenuItem>
+                  {Object.values(WorkItemActionType).map((action) => (
+                    <MenuItem key={action} value={action}>
+                      {WORK_ITEM_ACTION_LABEL_MAP[action]}
+                    </MenuItem>
+                  ))}
                 </TextField>
               )}
             />
@@ -113,7 +113,12 @@ export function WorkItemDetailPage() {
                 control={form.control}
                 rules={{ required: 'Bitte Zielbearbeiter eintragen.' }}
                 render={({ field, fieldState }) => (
-                  <TextField {...field} label="Weiterleiten an" error={Boolean(fieldState.error)} helperText={fieldState.error?.message} />
+                  <TextField
+                    {...field}
+                    label="Weiterleiten an"
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                  />
                 )}
               />
             )}
@@ -136,21 +141,27 @@ export function WorkItemDetailPage() {
               />
             )}
 
-            <Controller name="comment" control={form.control} render={({ field }) => <TextField {...field} multiline minRows={2} label="Kommentar" />} />
+            <Controller
+              name="comment"
+              control={form.control}
+              render={({ field }) => <TextField {...field} multiline minRows={2} label="Kommentar" />}
+            />
 
             <Button
               type="submit"
               variant="contained"
-              startIcon={
-                selectedAction === WorkItemActionType.START ? <PlayArrow /> : selectedAction === WorkItemActionType.COMPLETE ? <TaskAlt /> : <Update />
-              }
+              startIcon={getActionIcon(selectedAction)}
               disabled={actionMutation.isPending}
             >
               Aktion ausführen
             </Button>
           </Stack>
 
-          {actionMutation.isSuccess && <Alert severity="success" sx={{ mt: 2 }}>Aufgabe wurde aktualisiert.</Alert>}
+          {actionMutation.isSuccess && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              Aufgabe wurde aktualisiert.
+            </Alert>
+          )}
         </CardContent>
       </Card>
     </Stack>
