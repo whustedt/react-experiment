@@ -22,8 +22,8 @@ Dieses Setup adressiert genau das:
 
 ```text
 backend/
-  src/main/java/...         # REST API und DTOs
-  src/test/java/...         # Backend-Tests
+  src/main/java/...         # api/, application/, dto/, model/
+  src/test/java/...         # API-Tests
 frontend/
   src/
     app/                    # Bootstrapping, Router, Theme, Provider
@@ -98,5 +98,6 @@ mvn test
 ## Zusätzliche Doku
 
 - Architektur: `docs/architecture.md`
+- Tech Stack & Dependencies: `docs/tech-stack.md`
 - JEE-Onboarding: `docs/onboarding-java-devs.md`
 - Contribution Guide: `docs/contributing.md`

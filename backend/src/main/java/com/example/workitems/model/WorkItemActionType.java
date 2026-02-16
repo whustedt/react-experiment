@@ -1,4 +1,4 @@
-package com.example.workitems;
+package com.example.workitems.model;
 
 public enum WorkItemActionType {
     START,

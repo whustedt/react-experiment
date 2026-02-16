@@ -1,6 +1,8 @@
-package com.example.workitems;
+package com.example.workitems.dto;
 
 import java.util.List;
+
+import com.example.workitems.model.DomainObjectType;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 

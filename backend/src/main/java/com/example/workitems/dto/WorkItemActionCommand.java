@@ -1,6 +1,8 @@
-package com.example.workitems;
+package com.example.workitems.dto;
 
 import java.time.OffsetDateTime;
+
+import com.example.workitems.model.WorkItemActionType;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 

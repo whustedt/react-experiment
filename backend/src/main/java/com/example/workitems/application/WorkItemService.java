@@ -1,4 +1,4 @@
-package com.example.workitems;
+package com.example.workitems.application;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -11,48 +11,36 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-
-import jakarta.ws.rs.DefaultValue;
-import jakarta.ws.rs.GET;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.core.MediaType;
 
-@Path("/work-items")
-@Produces(MediaType.APPLICATION_JSON)
-@Tag(name = "WorkItems")
-public class WorkItemResource {
+import com.example.workitems.dto.ContextViewDto;
+import com.example.workitems.dto.DocumentDto;
+import com.example.workitems.dto.ProtocolEntryDto;
+import com.example.workitems.dto.UploadDocumentCommand;
+import com.example.workitems.dto.WorkItemActionCommand;
+import com.example.workitems.dto.WorkItemDto;
+import com.example.workitems.dto.WorkItemsPageDto;
+import com.example.workitems.model.BasketScope;
+import com.example.workitems.model.DomainObjectType;
+import com.example.workitems.model.WorkItemStatus;
+
+@ApplicationScoped
+public class WorkItemService {
 
     private static final String CURRENT_USER = "Alice";
     private static final String CURRENT_TEAM = "Leistung-Team Nord";
 
-    private static final List<WorkItemDto> WORK_ITEMS = new ArrayList<>(seedItems());
-    private static final Map<String, List<DocumentDto>> DOCUMENTS_BY_OBJECT = seedDocuments();
-    private static final Map<String, List<ProtocolEntryDto>> PROTOCOL_BY_OBJECT = seedProtocolEntries();
+    private final List<WorkItemDto> workItems = new ArrayList<>(seedItems());
+    private final Map<String, List<DocumentDto>> documentsByObject = seedDocuments();
+    private final Map<String, List<ProtocolEntryDto>> protocolByObject = seedProtocolEntries();
 
-    @GET
-    @Operation(operationId = "searchWorkItems")
-    public WorkItemsPageDto searchWorkItems(
-            @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("size") @DefaultValue("10") int size,
-            @QueryParam("sort") @DefaultValue("receivedAt,desc") String sort,
-            @QueryParam("q") String q,
-            @QueryParam("status") WorkItemStatus status,
-            @QueryParam("basket") @DefaultValue("MY") BasketScope basket,
-            @QueryParam("colleague") String colleague,
-            @QueryParam("objectType") DomainObjectType objectType,
-            @QueryParam("objectId") String objectId) {
-
+    public WorkItemsPageDto searchWorkItems(int page, int size, String sort, String q, WorkItemStatus status, BasketScope basket,
+            String colleague, DomainObjectType objectType, String objectId) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(size, 1);
 
-        List<WorkItemDto> filtered = WORK_ITEMS.stream()
+        List<WorkItemDto> filtered = workItems.stream()
                 .filter(item -> status == null || item.status == status)
                 .filter(item -> objectType == null || item.objectType == objectType)
                 .filter(item -> objectId == null || objectId.isBlank() || item.objectId.equalsIgnoreCase(objectId))
@@ -67,17 +55,11 @@ public class WorkItemResource {
         return new WorkItemsPageDto(new ArrayList<>(filtered.subList(fromIndex, toIndex)), filtered.size());
     }
 
-    @GET
-    @Path("/{id}")
-    @Operation(operationId = "getWorkItemById")
-    public WorkItemDto getWorkItemById(@PathParam("id") String id) {
+    public WorkItemDto getWorkItemById(String id) {
         return findWorkItem(id);
     }
 
-    @POST
-    @Path("/{id}/actions")
-    @Operation(operationId = "performWorkItemAction")
-    public WorkItemDto performWorkItemAction(@PathParam("id") String id, WorkItemActionCommand command) {
+    public WorkItemDto performWorkItemAction(String id, WorkItemActionCommand command) {
         WorkItemDto item = findWorkItem(id);
 
         if (command == null || command.action == null) {
@@ -120,16 +102,12 @@ public class WorkItemResource {
         return item;
     }
 
-    @GET
-    @Path("/context")
-    @Operation(operationId = "getContextView")
-    public ContextViewDto getContextView(@QueryParam("objectType") DomainObjectType objectType,
-            @QueryParam("objectId") String objectId) {
+    public ContextViewDto getContextView(DomainObjectType objectType, String objectId) {
         if (objectType == null || objectId == null || objectId.isBlank()) {
             throw new NotFoundException("Context requires objectType and objectId");
         }
 
-        List<WorkItemDto> tasks = WORK_ITEMS.stream()
+        List<WorkItemDto> tasks = workItems.stream()
                 .filter(item -> item.objectType == objectType && item.objectId.equalsIgnoreCase(objectId))
                 .sorted(Comparator.comparing(item -> item.receivedAt, Comparator.reverseOrder()))
                 .toList();
@@ -139,26 +117,18 @@ public class WorkItemResource {
         }
 
         WorkItemDto first = tasks.get(0);
-        String contextKey = contextKey(objectType, objectId);
+        String key = contextKey(objectType, objectId);
         return new ContextViewDto(
                 objectType,
                 objectId,
                 first.objectLabel,
-                "%s · Vertrag %s · Schaden %s".formatted(
-                        first.customerName,
-                        safe(first.contractNo),
-                        safe(first.claimNo)),
+                "%s · Vertrag %s · Schaden %s".formatted(first.customerName, safe(first.contractNo), safe(first.claimNo)),
                 tasks,
-                DOCUMENTS_BY_OBJECT.getOrDefault(contextKey, List.of()),
-                PROTOCOL_BY_OBJECT.getOrDefault(contextKey, List.of()));
+                documentsByObject.getOrDefault(key, List.of()),
+                protocolByObject.getOrDefault(key, List.of()));
     }
 
-    @POST
-    @Path("/context/{objectType}/{objectId}/documents")
-    @Operation(operationId = "uploadDocument")
-    public DocumentDto uploadDocument(@PathParam("objectType") DomainObjectType objectType,
-            @PathParam("objectId") String objectId,
-            UploadDocumentCommand command) {
+    public DocumentDto uploadDocument(DomainObjectType objectType, String objectId, UploadDocumentCommand command) {
         if (command == null || command.fileName == null || command.fileName.isBlank()) {
             throw new NotFoundException("Document requires fileName");
         }
@@ -173,8 +143,8 @@ public class WorkItemResource {
                 OffsetDateTime.now(ZoneOffset.UTC),
                 command.uploadedBy == null || command.uploadedBy.isBlank() ? CURRENT_USER : command.uploadedBy);
 
-        DOCUMENTS_BY_OBJECT.computeIfAbsent(key, k -> new ArrayList<>()).add(0, document);
-        PROTOCOL_BY_OBJECT.computeIfAbsent(key, k -> new ArrayList<>()).add(0,
+        documentsByObject.computeIfAbsent(key, ignored -> new ArrayList<>()).add(0, document);
+        protocolByObject.computeIfAbsent(key, ignored -> new ArrayList<>()).add(0,
                 new ProtocolEntryDto(
                         "LOG-" + UUID.randomUUID().toString().substring(0, 8),
                         OffsetDateTime.now(ZoneOffset.UTC),
@@ -184,14 +154,25 @@ public class WorkItemResource {
         return document;
     }
 
-    private static WorkItemDto findWorkItem(String id) {
-        return WORK_ITEMS.stream().filter(item -> item.id.equals(id)).findFirst()
+    public void resetState() {
+        workItems.clear();
+        workItems.addAll(seedItems());
+
+        documentsByObject.clear();
+        documentsByObject.putAll(seedDocuments());
+
+        protocolByObject.clear();
+        protocolByObject.putAll(seedProtocolEntries());
+    }
+
+    private WorkItemDto findWorkItem(String id) {
+        return workItems.stream().filter(item -> item.id.equals(id)).findFirst()
                 .orElseThrow(() -> new NotFoundException("Work item not found: " + id));
     }
 
-    private static void addProtocol(WorkItemDto item, String source, String message, String comment) {
+    private void addProtocol(WorkItemDto item, String source, String message, String comment) {
         String details = comment == null || comment.isBlank() ? message : message + " Hinweis: " + comment;
-        PROTOCOL_BY_OBJECT.computeIfAbsent(contextKey(item.objectType, item.objectId), k -> new ArrayList<>()).add(0,
+        protocolByObject.computeIfAbsent(contextKey(item.objectType, item.objectId), ignored -> new ArrayList<>()).add(0,
                 new ProtocolEntryDto(
                         "LOG-" + UUID.randomUUID().toString().substring(0, 8),
                         OffsetDateTime.now(ZoneOffset.UTC),
@@ -238,22 +219,22 @@ public class WorkItemResource {
                         OffsetDateTime.of(2024, 6, 3, 8, 30, 0, 0, ZoneOffset.UTC),
                         OffsetDateTime.of(2024, 6, 7, 16, 0, 0, 0, ZoneOffset.UTC), "Alice", "Leistung-Team Nord"),
                 new WorkItemDto("WI-3002", DomainObjectType.CONTRACT, "V-1001", "Vertrag V-1001", "Müller GmbH",
-                        "V-1001", "S-2001", "Vertragsverlängerung vorbereiten", "Deckung prüfen und Angebot erstellen.",
+                        "V-1001", "S-2001", "Beitrag neu berechnen", "Nachtragsangebot wegen Tarifwechsel.",
                         WorkItemStatus.IN_PROGRESS, 2,
                         OffsetDateTime.of(2024, 6, 2, 9, 15, 0, 0, ZoneOffset.UTC),
-                        OffsetDateTime.of(2024, 6, 10, 12, 0, 0, 0, ZoneOffset.UTC), "Bob", "Leistung-Team Nord"),
+                        OffsetDateTime.of(2024, 6, 10, 15, 30, 0, 0, ZoneOffset.UTC), "Bob", "Leistung-Team Nord"),
                 new WorkItemDto("WI-3003", DomainObjectType.CLAIM, "S-2001", "Schaden S-2001", "Müller GmbH",
-                        "V-1001", "S-2001", "Reparaturrechnung nachfordern", "Werkstatt hat keine Rechnung geliefert.",
-                        WorkItemStatus.BLOCKED, 1,
-                        OffsetDateTime.of(2024, 6, 1, 11, 0, 0, 0, ZoneOffset.UTC),
-                        OffsetDateTime.of(2024, 6, 8, 14, 0, 0, 0, ZoneOffset.UTC), "Clara", "Leistung-Team Nord"),
-                new WorkItemDto("WI-3004", DomainObjectType.CLAIM, "S-2002", "Schaden S-2002", "Schmidt AG",
-                        "V-2001", "S-2002", "Regress prüfen", "Prüfung Fremdverschulden erforderlich.",
-                        WorkItemStatus.OPEN, 2,
+                        "V-1001", "S-2001", "Deckungsprüfung finalisieren", "Eingegangene Fotos und Kostenvoranschlag bewerten.",
+                        WorkItemStatus.OPEN, 1,
+                        OffsetDateTime.of(2024, 6, 1, 11, 40, 0, 0, ZoneOffset.UTC),
+                        OffsetDateTime.of(2024, 6, 6, 12, 0, 0, 0, ZoneOffset.UTC), "Alice", "Leistung-Team Nord"),
+                new WorkItemDto("WI-3004", DomainObjectType.CUSTOMER, "K-2002", "Kunde K-2002", "Schmidt AG",
+                        "V-2001", "S-2002", "SEPA-Mandat nachfordern", "Fehlende Einzugsermächtigung für Folgebeitrag.",
+                        WorkItemStatus.BLOCKED, 2,
                         OffsetDateTime.of(2024, 6, 4, 13, 20, 0, 0, ZoneOffset.UTC),
-                        OffsetDateTime.of(2024, 6, 11, 10, 0, 0, 0, ZoneOffset.UTC), "Alice", "Leistung-Team Süd"),
-                new WorkItemDto("WI-3005", DomainObjectType.CUSTOMER, "K-1002", "Kunde K-1002", "Schmidt AG",
-                        "V-2001", "S-2002", "Bonitätsprüfung dokumentieren", "Aktuelle Auskunft ablegen.",
+                        OffsetDateTime.of(2024, 6, 14, 10, 0, 0, 0, ZoneOffset.UTC), "Clara", "Leistung-Team Süd"),
+                new WorkItemDto("WI-3005", DomainObjectType.CLAIM, "S-2003", "Schaden S-2003", "Schmidt AG",
+                        "V-2001", "S-2003", "Regress prüfen", "Prüfung gegen Drittschädiger einleiten.",
                         WorkItemStatus.DONE, 3,
                         OffsetDateTime.of(2024, 5, 29, 7, 45, 0, 0, ZoneOffset.UTC),
                         OffsetDateTime.of(2024, 6, 5, 18, 0, 0, 0, ZoneOffset.UTC), "Daniel", "Leistung-Team Süd"),
@@ -294,19 +275,5 @@ public class WorkItemResource {
                 new ProtocolEntryDto("LOG-2003", OffsetDateTime.of(2024, 6, 2, 9, 30, 0, 0, ZoneOffset.UTC),
                         "Bestand", "Vertragsverlängerung aus Bestand ausgelöst."))));
         return logs;
-    }
-
-    /**
-     * Reset the in-memory seeded state. Useful for tests to restore the initial dataset.
-     */
-    public static void resetState() {
-        WORK_ITEMS.clear();
-        WORK_ITEMS.addAll(new ArrayList<>(seedItems()));
-
-        DOCUMENTS_BY_OBJECT.clear();
-        DOCUMENTS_BY_OBJECT.putAll(seedDocuments());
-
-        PROTOCOL_BY_OBJECT.clear();
-        PROTOCOL_BY_OBJECT.putAll(seedProtocolEntries());
     }
 }

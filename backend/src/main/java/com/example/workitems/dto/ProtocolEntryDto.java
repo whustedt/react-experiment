@@ -1,4 +1,4 @@
-package com.example.workitems;
+package com.example.workitems.dto;
 
 import java.time.OffsetDateTime;
 
